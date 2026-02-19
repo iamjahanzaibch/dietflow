@@ -12,8 +12,9 @@
   <div class="container nav">
     <div class="brand"><a href="./index.html">dietflow<span>.</span></a></div>
     <div class="links">
-      <a href="./recommendations.html">recommendations</a>
+      <a href="./recommendations.html" class="active">recommendations</a>
       <a href="./plan.html">weekly plan</a>
+      <a href="./analytics.html">analytics</a>
     </div>
   </div>
 </header>
@@ -55,6 +56,13 @@
     </div>
   </div>
 
+  <!-- ✅ Charts (optional but beautiful) -->
+  <section class="card" style="margin-top:18px;">
+    <h3 style="margin-bottom:8px;">Recommendation Insights</h3>
+    <div id="recCharts" style="height:420px;"></div>
+    <div class="hint" id="chartHint" style="margin-top:8px;">Charts will load when data is available.</div>
+  </section>
+
   <div id="cards" class="cards"></div>
 
   <div class="footer">
@@ -63,22 +71,133 @@
   </div>
 </main>
 
-<!-- PapaParse -->
+<!-- Libraries -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+
+<!-- Your existing app logic (CSV renderer) -->
 <script src="./assets/app.js"></script>
 
 <script>
-  // ✅ GitHub RAW (NOT blob)
-  window.RECOMMENDATIONS_CSV_URL =
+  /**
+   * ✅ Strategy:
+   * 1) Try to load local JSON first (fast on Vercel): /data/recommendations.json
+   * 2) If not present, fallback to your GitHub RAW CSV (current approach)
+   */
+
+  // CSV fallback (your current working source)
+  const CSV_FALLBACK =
     "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/top_recommendations_lunch.csv";
 
-  document.getElementById("srcCode").textContent = window.RECOMMENDATIONS_CSV_URL;
+  // JSON primary (you will add this later in repo: /data/recommendations.json)
+  const JSON_PRIMARY = "./data/recommendations.json";
 
-  window.initRecommendations().catch(err => {
-    document.getElementById("countInfo").textContent = "Failed to load CSV";
-    document.getElementById("cards").innerHTML =
-      `<div class="card"><h3>Error</h3><p>${String(err.message)}</p></div>`;
-  });
+  function setSourceLabel(text) {
+    document.getElementById("srcCode").textContent = text;
+  }
+
+  async function tryLoadJSON() {
+    const res = await fetch(JSON_PRIMARY, { cache: "no-store" });
+    if (!res.ok) throw new Error("JSON not found");
+    const obj = await res.json();
+    if (!obj || !Array.isArray(obj.recommendations)) throw new Error("Invalid JSON schema");
+    return obj;
+  }
+
+  function toCSVLikeRowsFromJSON(obj) {
+    // Convert JSON recommendations -> shape that your existing app.js expects
+    return obj.recommendations.map(r => ({
+      name: r.name ?? r.Name ?? "",
+      category: r.category ?? r.Category ?? "",
+      calories: r.calories ?? r.Calories ?? "",
+      protein: r.protein ?? r.Protein ?? "",
+      carbs: r.carbs ?? r.Carbs ?? "",
+      fat: r.fat ?? r.Fat ?? "",
+      final_score: r.final_score ?? r.score ?? r.Score ?? ""
+    }));
+  }
+
+  function drawChartsFromRows(rows) {
+    try {
+      const calories = rows.map(r => Number(r.calories)).filter(v => Number.isFinite(v) && v > 0);
+      const scores = rows.map(r => Number(r.final_score)).filter(v => Number.isFinite(v));
+      const protein = rows.map(r => Number(r.protein)).filter(v => Number.isFinite(v));
+
+      const traces = [
+        { x: calories, type: "histogram", nbinsx: 30, name: "Calories" },
+        { x: scores, type: "histogram", nbinsx: 30, name: "Scores" }
+      ];
+
+      // If protein exists, add it
+      if (protein.length > 10) {
+        traces.push({ x: protein, type: "histogram", nbinsx: 30, name: "Protein" });
+      }
+
+      Plotly.newPlot("recCharts", traces, {
+        margin: { t: 10, l: 45, r: 20, b: 45 },
+        barmode: "overlay",
+        xaxis: { title: "Value" },
+        yaxis: { title: "Count" },
+        legend: { orientation: "h" }
+      }, { responsive: true });
+
+      document.getElementById("chartHint").textContent = "Loaded charts from recommendation data.";
+    } catch (e) {
+      document.getElementById("chartHint").textContent = "Charts could not be rendered for this dataset.";
+    }
+  }
+
+  async function boot() {
+    // Bind slider labels
+    const bindVal = (id, outId) => {
+      const el = document.getElementById(id);
+      const out = document.getElementById(outId);
+      out.textContent = el.value;
+      el.addEventListener("input", () => out.textContent = el.value);
+    };
+    bindVal("calMax", "calMaxVal");
+    bindVal("pMin", "pMinVal");
+    bindVal("cMax", "cMaxVal");
+    bindVal("fMax", "fMaxVal");
+
+    // Try JSON first
+    try {
+      const json = await tryLoadJSON();
+      const rows = toCSVLikeRowsFromJSON(json);
+
+      // ✅ Feed rows into your existing renderer
+      // Your app.js currently expects a CSV URL; so we inject a tiny trick:
+      window.__DIETFLOW_INLINE_ROWS__ = rows;
+
+      // Provide a source label
+      setSourceLabel("Local JSON: " + JSON_PRIMARY);
+
+      // If your app.js supports inline rows, use it; otherwise fallback to CSV
+      if (typeof window.initRecommendationsFromRows === "function") {
+        await window.initRecommendationsFromRows(rows);
+        drawChartsFromRows(rows);
+        return;
+      }
+
+      // If your app.js does NOT support inline rows yet:
+      // we still draw charts + continue with CSV renderer for cards
+      drawChartsFromRows(rows);
+      throw new Error("app.js has no initRecommendationsFromRows(); using CSV fallback for cards.");
+    } catch (e) {
+      // Fallback: your current CSV path (works today)
+      window.RECOMMENDATIONS_CSV_URL = CSV_FALLBACK;
+      setSourceLabel("GitHub CSV: " + CSV_FALLBACK);
+
+      window.initRecommendations().catch(err => {
+        document.getElementById("countInfo").textContent = "Failed to load data";
+        document.getElementById("cards").innerHTML =
+          `<div class="card"><h3>Error</h3><p>${String(err.message)}</p></div>`;
+      });
+    }
+  }
+
+  boot();
 </script>
+
 </body>
 </html>
