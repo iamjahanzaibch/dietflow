@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DietFlow — Weekly Plan</title>
+  <link rel="stylesheet" href="./assets/style.css"/>
+</head>
+
+<body>
+<header>
+  <div class="container nav">
+    <div class="brand"><a href="./index.html">dietflow<span>.</span></a></div>
+    <div class="links">
+      <a href="./recommendations.html">recommendations</a>
+      <a href="./plan.html">weekly plan</a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="sectionTitle">
+    <h2>Weekly Plan</h2>
+    <div class="hint">Breakfast • Lunch • Dinner</div>
+  </div>
+
+  <div id="planRoot"></div>
+
+  <div class="footer">
+    Data source:
+    <code id="srcCode"></code>
+  </div>
+</main>
+
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="./assets/app.js"></script>
+
+<script>
+  // ✅ GitHub RAW (NOT blob)
+  window.WEEKLY_PLAN_CSV_URL =
+    "https://raw.githubusercontent.com/mzunnurainhussain/dietflow/main/weekly_plan.csv";
+
+  document.getElementById("srcCode").textContent = window.WEEKLY_PLAN_CSV_URL;
+
+  window.initPlan().catch(err => {
+    document.getElementById("planRoot").innerHTML =
+      `<div class="card"><h3>Error</h3><p>${String(err.message)}</p></div>`;
+  });
+</script>
+</body>
+</html>
