@@ -1,20 +1,117 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>DietFlow • Analytics</title>
-  <link rel="stylesheet" href="/style.css" />
-  <script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DietFlow — Analytics</title>
+  <link rel="stylesheet" href="./assets/style.css"/>
 </head>
+
 <body>
-  <div class="container">
-    <h1>Analytics</h1>
-    <div id="caloriesHist" style="height:420px;"></div>
-    <div id="tagsBar" style="height:420px; margin-top:20px;"></div>
-    <div id="scoresBar" style="height:420px; margin-top:20px;"></div>
+<header>
+  <div class="container nav">
+    <div class="brand"><a href="./index.html">dietflow<span>.</span></a></div>
+    <div class="links">
+      <a href="./recommendations.html">recommendations</a>
+      <a href="./plan.html">weekly plan</a>
+      <a href="./analytics.html">analytics</a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="sectionTitle">
+    <h2>Analytics Dashboard</h2>
+    <div class="hint">Dataset insights & visualizations</div>
   </div>
 
-  <script src="/js/analytics.js"></script>
+  <div id="chart1" style="height:400px;"></div>
+  <div id="chart2" style="height:400px;"></div>
+  <div id="chart3" style="height:400px;"></div>
+
+  <div class="footer">
+    Data source:
+    <code id="srcCode"></code>
+  </div>
+</main>
+
+<!-- Plotly -->
+<script src="https://cdn.plot.ly/plotly-2.32.0.min.js"></script>
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+
+<script>
+window.RECOMMENDATIONS_CSV_URL =
+  "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/top_recommendations_lunch.csv";
+
+document.getElementById("srcCode").textContent =
+  window.RECOMMENDATIONS_CSV_URL;
+
+const toNum = v => Number(v) || 0;
+
+async function loadCsv(url){
+  const res = await fetch(url);
+  const text = await res.text();
+  return Papa.parse(text, {header:true}).data;
+}
+
+async function initAnalytics(){
+  const rows = await loadCsv(window.RECOMMENDATIONS_CSV_URL);
+
+  const data = rows.map(r => ({
+    calories: toNum(r.Calories ?? r.calories),
+    protein: toNum(r.Protein ?? r.protein),
+    carbs: toNum(r.Carbs ?? r.carbs),
+    fat: toNum(r.Fat ?? r.fat)
+  }));
+
+  const calories = data.map(d=>d.calories);
+  const protein = data.map(d=>d.protein);
+  const carbs = data.map(d=>d.carbs);
+  const fat = data.map(d=>d.fat);
+
+  // Chart 1: Calories Distribution
+  Plotly.newPlot("chart1", [{
+    x: calories,
+    type: "histogram"
+  }], {
+    title: "Calories Distribution",
+    paper_bgcolor: "#0e1117",
+    plot_bgcolor: "#0e1117",
+    font: {color: "#fff"}
+  });
+
+  // Chart 2: Protein vs Calories
+  Plotly.newPlot("chart2", [{
+    x: calories,
+    y: protein,
+    mode: "markers",
+    type: "scatter"
+  }], {
+    title: "Protein vs Calories",
+    paper_bgcolor: "#0e1117",
+    plot_bgcolor: "#0e1117",
+    font: {color: "#fff"}
+  });
+
+  // Chart 3: Macro Comparison
+  Plotly.newPlot("chart3", [{
+    x: ["Protein","Carbs","Fat"],
+    y: [
+      protein.reduce((a,b)=>a+b,0)/protein.length,
+      carbs.reduce((a,b)=>a+b,0)/carbs.length,
+      fat.reduce((a,b)=>a+b,0)/fat.length
+    ],
+    type: "bar"
+  }], {
+    title: "Average Macronutrient Comparison",
+    paper_bgcolor: "#0e1117",
+    plot_bgcolor: "#0e1117",
+    font: {color: "#fff"}
+  });
+}
+
+initAnalytics();
+</script>
 </body>
 </html>
