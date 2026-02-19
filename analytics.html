@@ -26,7 +26,7 @@
   </div>
 
   <section class="card">
-    <h3 style="margin-bottom:10px;">Calories distribution (recommended)</h3>
+    <h3 style="margin-bottom:10px;">Calories Distribution (Recommendations)</h3>
     <div id="calHist" style="height:380px;"></div>
   </section>
 
@@ -36,15 +36,13 @@
   </section>
 
   <section class="card" style="margin-top:18px;">
-    <h3 style="margin-bottom:10px;">Weekly plan totals</h3>
+    <h3 style="margin-bottom:10px;">Weekly Plan Total Calories</h3>
     <div id="weekBars" style="height:420px;"></div>
   </section>
 
   <div class="footer">
     Data sources:
-    <code id="src1"></code>
-    <span> • </span>
-    <code id="src2"></code>
+    <code id="src1"></code> • <code id="src2"></code>
   </div>
 </main>
 
@@ -53,12 +51,15 @@
 <script src="./assets/analytics.js"></script>
 
 <script>
-  window.ANALYTICS_REC_CSV = "./top_recommendations_lunch.csv";
-  window.ANALYTICS_WEEK_CSV = "./weekly_plan.csv";
+  window.ANALYTICS_REC_CSV =
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/top_recommendations_lunch.csv";
+  window.ANALYTICS_WEEK_CSV =
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/weekly_plan.csv";
+
   document.getElementById("src1").textContent = window.ANALYTICS_REC_CSV;
   document.getElementById("src2").textContent = window.ANALYTICS_WEEK_CSV;
 
-  window.initAnalytics().catch(e=>{
+  window.initAnalytics().catch(e => {
     document.getElementById("aHint").textContent = "Failed to load analytics.";
   });
 </script>
