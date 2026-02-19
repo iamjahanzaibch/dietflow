@@ -1,7 +1,7 @@
 // ---------- helpers ----------
 const toNum = (v) => {
   const n = Number(String(v ?? "").trim());
-  return Number.isFinite(n) ? n : null; // keep null (better than forcing 0)
+  return Number.isFinite(n) ? n : null;
 };
 
 const esc = (s) =>
@@ -28,10 +28,12 @@ function pick(row, keys) {
   return "";
 }
 
-function recipeCard(r) {
-  const chip = (label, val) =>
-    (val === null || val === undefined) ? "" : `<span class="chip">${label}: <b>${val}</b></span>`;
+function chip(label, val) {
+  if (val === null || val === undefined) return "";
+  return `<span class="chip">${label}: <b>${val}</b></span>`;
+}
 
+function recipeCard(r) {
   return `
     <div class="recipe">
       <div class="name">${esc(r.name)}</div>
@@ -70,6 +72,7 @@ function normalizeRecRows(rows) {
 }
 
 function drawRecommendationCharts(rows, chartElId, chartHintId) {
+  if (!chartElId) return;
   const hint = chartHintId ? document.getElementById(chartHintId) : null;
   if (typeof Plotly === "undefined") {
     if (hint) hint.textContent = "Plotly not available.";
@@ -83,7 +86,7 @@ function drawRecommendationCharts(rows, chartElId, chartHintId) {
 
     const traces = [
       { x: calories, type: "histogram", nbinsx: 30, name: "Calories" },
-      { x: scores, type: "histogram", nbinsx: 30, name: "Scores" }
+      { x: scores, type: "histogram", nbinsx: 30, name: "Score" }
     ];
     if (protein.length > 10) traces.push({ x: protein, type: "histogram", nbinsx: 30, name: "Protein" });
 
@@ -108,18 +111,13 @@ async function initRecommendations(opts = {}) {
   const holder = document.getElementById("cards");
   const info = document.getElementById("countInfo");
 
-  const url = window.RECOMMENDATIONS_CSV_URL || "./top_recommendations_lunch.csv";
+  const url = window.RECOMMENDATIONS_CSV_URL ||
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/top_recommendations_lunch.csv";
+
   const raw = await loadCsv(url);
   const data = normalizeRecRows(raw);
 
-  const state = {
-    q: "",
-    calMax: 1200,
-    pMin: 0,
-    cMax: 200,
-    fMax: 120,
-    sort: "score",
-  };
+  const state = { q:"", calMax:1200, pMin:0, cMax:200, fMax:120, sort:"score" };
 
   const bind = (id, key, transform = (v) => v) => {
     const el = document.getElementById(id);
@@ -160,16 +158,9 @@ async function initRecommendations(opts = {}) {
       const c = r.carbs ?? 0;
       const f = r.fat ?? 0;
 
-      return (
-        okQ &&
-        r.calories <= state.calMax &&
-        p >= state.pMin &&
-        c <= state.cMax &&
-        f <= state.fMax
-      );
+      return okQ && r.calories <= state.calMax && p >= state.pMin && c <= state.cMax && f <= state.fMax;
     });
 
-    // ✅ monotonic ranking with tie-breakers
     if (state.sort === "score") out.sort((a, b) =>
       (b.score - a.score) ||
       ((a.calories ?? 1e18) - (b.calories ?? 1e18)) ||
@@ -190,7 +181,7 @@ async function initRecommendations(opts = {}) {
     info.textContent = `${out.length} results (showing top 60)`;
     holder.innerHTML = out.map(recipeCard).join("");
 
-    if (opts.chartElId) drawRecommendationCharts(out, opts.chartElId, opts.chartHintId);
+    drawRecommendationCharts(out, opts.chartElId, opts.chartHintId);
   }
 
   render();
@@ -202,22 +193,22 @@ async function initRecommendations(opts = {}) {
 async function initPlan() {
   const root = document.getElementById("planRoot");
 
-  const url = window.WEEKLY_PLAN_CSV_URL || "./weekly_plan.csv";
+  const url = window.WEEKLY_PLAN_CSV_URL ||
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/weekly_plan.csv";
+
   const rows = await loadCsv(url);
 
-  const data = rows
-    .map((r) => ({
-      day: String(pick(r, ["Day","day"])).trim(),
-      meal: String(pick(r, ["Meal","meal"])).trim(),
-      name: String(pick(r, ["Name","name"])).trim(),
-      category: String(pick(r, ["Category","category"])).trim(),
-      calories: toNum(pick(r, ["Calories","calories"])),
-      protein: toNum(pick(r, ["Protein","protein"])),
-      carbs: toNum(pick(r, ["Carbs","carbs"])),
-      fat: toNum(pick(r, ["Fat","fat"])),
-      score: toNum(pick(r, ["Score","final_score","score"]))
-    }))
-    .filter((x) => x.day && x.meal && x.name);
+  const data = rows.map((r) => ({
+    day: String(pick(r, ["Day","day"])).trim(),
+    meal: String(pick(r, ["Meal","meal"])).trim(),
+    name: String(pick(r, ["Name","name"])).trim(),
+    category: String(pick(r, ["Category","category"])).trim(),
+    calories: toNum(pick(r, ["Calories","calories"])),
+    protein: toNum(pick(r, ["Protein","protein"])),
+    carbs: toNum(pick(r, ["Carbs","carbs"])),
+    fat: toNum(pick(r, ["Fat","fat"])),
+    score: toNum(pick(r, ["Score","final_score","score"]))
+  })).filter(x => x.day && x.meal && x.name);
 
   const grouped = {};
   for (const r of data) {
