@@ -1,11 +1,9 @@
-dietflow-static/
-├── index.html
-├── recommendations.html
-├── plan.html
-├── vercel.json
-├── assets/
-│   ├── style.css
-│   └── app.js
-└── data/
-    ├── weekly_plan.csv
-    └── top_recommendations_lunch.csv
+/notebooks/Diet_Plan_Recommendation_Jehanzeb.ipynb   
+/scripts/data_pipeline.py                            
+/public/data/recommendations.json                    
+/public/data/weekly_plan.json                        
+/public/data/charts.json                            
+/public/analytics.html                               
+/public/js/analytics.js                              
+/public/js/recommendations.js                        
+/public/js/weekly.js                                 
