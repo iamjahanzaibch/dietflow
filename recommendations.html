@@ -56,7 +56,6 @@
     </div>
   </div>
 
-  <!-- Charts -->
   <section class="card" style="margin-top:18px;">
     <h3 style="margin-bottom:8px;">Recommendation Insights</h3>
     <div id="recCharts" style="height:420px;"></div>
@@ -76,16 +75,19 @@
 <script src="./assets/app.js"></script>
 
 <script>
-  // ✅ Use local CSV inside the same Vercel site (no CORS issues)
-  window.RECOMMENDATIONS_CSV_URL = "./top_recommendations_lunch.csv";
+  window.RECOMMENDATIONS_CSV_URL =
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/top_recommendations_lunch.csv";
+
   document.getElementById("srcCode").textContent = window.RECOMMENDATIONS_CSV_URL;
 
-  window.initRecommendations({ chartElId: "recCharts", chartHintId: "chartHint" }).catch(err => {
+  window.initRecommendations({
+    chartElId: "recCharts",
+    chartHintId: "chartHint"
+  }).catch(err => {
     document.getElementById("countInfo").textContent = "Failed to load data";
     document.getElementById("cards").innerHTML =
       `<div class="card"><h3>Error</h3><p>${String(err.message)}</p></div>`;
   });
 </script>
-
 </body>
 </html>
