@@ -37,8 +37,9 @@
 <script src="./assets/app.js"></script>
 
 <script>
-  // ✅ Use local CSV
-  window.WEEKLY_PLAN_CSV_URL = "./weekly_plan.csv";
+  window.WEEKLY_PLAN_CSV_URL =
+    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/weekly_plan.csv";
+
   document.getElementById("srcCode").textContent = window.WEEKLY_PLAN_CSV_URL;
 
   window.initPlan().catch(err => {
