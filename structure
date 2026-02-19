@@ -1,0 +1,11 @@
+dietflow-static/
+├── index.html
+├── recommendations.html
+├── plan.html
+├── vercel.json
+├── assets/
+│   ├── style.css
+│   └── app.js
+└── data/
+    ├── weekly_plan.csv
+    └── top_recommendations_lunch.csv
