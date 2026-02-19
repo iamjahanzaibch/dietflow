@@ -1,0 +1,22 @@
+Day,Meal,Name,Category,Calories,Protein,Carbs,Fat,Score
+Mon,Breakfast,Waffled Pizza,Breakfast,758.3,30.8,94.8,27.3,0.23580850649822732
+Mon,Lunch,Gorp,Lunch/Snacks,637.3,20.1,60.1,40.6,0.24345619755475012
+Mon,Dinner,Working Woman's Turkey Dinner,High Protein,872.9,99.9,40.4,32.3,0.25635759786166923
+Tue,Breakfast,Breakfast Casserole,Breakfast,707.9,41.0,21.5,50.0,0.20329100486936147
+Tue,Lunch,Baked Noodles,Lunch/Snacks,832.4,45.4,90.9,31.2,0.2330179036599156
+Tue,Dinner,Happy Kitty Sardine Dinner,High Protein,683.2,66.6,36.4,27.8,0.20370874635366681
+Wed,Breakfast,Bisquick Clone,Breads,675.1,11.6,93.5,28.3,0.19701092664763253
+Wed,Lunch,Cheesy Tuna Ramen,Lunch/Snacks,770.9,55.9,59.2,33.3,0.1959174071411599
+Wed,Dinner,Tuna Ramen Dinner (Great for College Kids!),One Dish Meal,780.9,62.3,69.2,27.9,0.21322661562311335
+Thu,Breakfast,Halleluiah Waffles,Breakfast,581.8,11.5,60.2,33.0,0.18083796525714457
+Thu,Lunch,Croque Monsieur,Lunch/Snacks,760.3,48.0,67.8,32.2,0.1844006736247574
+Thu,Dinner,Donna's Dinner,One Dish Meal,754.2,58.9,32.5,41.6,0.19826644895573017
+Fri,Breakfast,Belgian Waffles,Breakfast,666.5,17.8,71.6,34.4,0.18089316379884943
+Fri,Lunch,Pilgrim Sandwich,Lunch/Snacks,917.6,51.9,76.3,44.0,0.1791950713902396
+Fri,Dinner,Dinner Party Chicken,Chicken,542.1,41.7,28.3,29.8,0.19687090028533952
+Sat,Breakfast,Waffles,Breakfast,599.5,18.9,81.9,21.5,0.18084072612413998
+Sat,Lunch,Quesedillas,Lunch/Snacks,934.0,47.7,64.5,53.8,0.17713802035487114
+Sat,Dinner,Slow Cooked Pork Chop Dinner,Pork,563.7,53.5,8.6,33.9,0.12452079533489756
+Sun,Breakfast,Pat's Buttermilk Pancakes,Breakfast,689.1,20.5,91.2,26.7,0.1753957229404729
+Sun,Lunch,21 Club Burger,Lunch/Snacks,738.2,49.2,29.7,45.7,0.1768275035553823
+Sun,Dinner,New England Boiled Dinner,One Dish Meal,909.8,58.5,102.2,30.9,0.032584309805894045
