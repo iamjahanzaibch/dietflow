@@ -13,7 +13,7 @@
     <div class="brand"><a href="./index.html">dietflow<span>.</span></a></div>
     <div class="links">
       <a href="./recommendations.html">recommendations</a>
-      <a href="./plan.html">weekly plan</a>
+      <a href="./plan.html" class="active">weekly plan</a>
       <a href="./analytics.html">analytics</a>
     </div>
   </div>
@@ -33,15 +33,12 @@
   </div>
 </main>
 
-<!-- PapaParse -->
 <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
 <script src="./assets/app.js"></script>
 
 <script>
-  // ✅ GitHub RAW (NOT blob)
-  window.WEEKLY_PLAN_CSV_URL =
-    "https://raw.githubusercontent.com/iamjahanzaibch/dietflow/main/weekly_plan.csv";
-
+  // ✅ Use local CSV
+  window.WEEKLY_PLAN_CSV_URL = "./weekly_plan.csv";
   document.getElementById("srcCode").textContent = window.WEEKLY_PLAN_CSV_URL;
 
   window.initPlan().catch(err => {
