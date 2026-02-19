@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>DietFlow — Recommendations</title>
+  <link rel="stylesheet" href="./assets/style.css"/>
+</head>
+
+<body>
+<header>
+  <div class="container nav">
+    <div class="brand"><a href="./index.html">dietflow<span>.</span></a></div>
+    <div class="links">
+      <a href="./recommendations.html">recommendations</a>
+      <a href="./plan.html">weekly plan</a>
+    </div>
+  </div>
+</header>
+
+<main class="container">
+  <div class="sectionTitle">
+    <h2>Recommendations</h2>
+    <div class="hint" id="countInfo">Loading…</div>
+  </div>
+
+  <div class="filters">
+    <div class="row">
+      <input id="q" class="input" placeholder="Search: salad, chicken, rice..." />
+      <select id="sort" class="select">
+        <option value="score">Best score</option>
+        <option value="calories">Lowest calories</option>
+        <option value="protein">Highest protein</option>
+      </select>
+
+      <div class="sliderWrap">
+        <label><span>Max calories</span><b id="calMaxVal">1200</b></label>
+        <input id="calMax" type="range" min="200" max="2000" step="10" value="1200"/>
+      </div>
+
+      <div class="sliderWrap">
+        <label><span>Min protein</span><b id="pMinVal">0</b></label>
+        <input id="pMin" type="range" min="0" max="150" step="1" value="0"/>
+      </div>
+
+      <div class="sliderWrap">
+        <label><span>Max carbs</span><b id="cMaxVal">200</b></label>
+        <input id="cMax" type="range" min="0" max="300" step="5" value="200"/>
+      </div>
+
+      <div class="sliderWrap">
+        <label><span>Max fat</span><b id="fMaxVal">120</b></label>
+        <input id="fMax" type="range" min="0" max="200" step="5" value="120"/>
+      </div>
+    </div>
+  </div>
+
+  <div id="cards" class="cards"></div>
+
+  <div class="footer">
+    Data source:
+    <code id="srcCode"></code>
+  </div>
+</main>
+
+<!-- PapaParse -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script src="./assets/app.js"></script>
+
+<script>
+  // ✅ GitHub RAW (NOT blob)
+  window.RECOMMENDATIONS_CSV_URL =
+    "https://raw.githubusercontent.com/mzunnurainhussain/dietflow/main/top_recommendations_lunch.csv";
+
+  document.getElementById("srcCode").textContent = window.RECOMMENDATIONS_CSV_URL;
+
+  window.initRecommendations().catch(err => {
+    document.getElementById("countInfo").textContent = "Failed to load CSV";
+    document.getElementById("cards").innerHTML =
+      `<div class="card"><h3>Error</h3><p>${String(err.message)}</p></div>`;
+  });
+</script>
+</body>
+</html>
