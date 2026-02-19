@@ -1,16 +1,7 @@
-// CSV parsing via PapaParse CDN (loaded in HTML)
-
 // ---------- helpers ----------
-const toNumOrNull = (v) => {
-  const s = String(v ?? "").trim();
-  if (!s || s.toLowerCase() === "nan" || s.toLowerCase() === "null") return null;
-  const n = Number(s);
-  return Number.isFinite(n) ? n : null;
-};
-
-const toNumOrZero = (v) => {
-  const n = toNumOrNull(v);
-  return n == null ? 0 : n;
+const toNum = (v) => {
+  const n = Number(String(v ?? "").trim());
+  return Number.isFinite(n) ? n : null; // keep null (better than forcing 0)
 };
 
 const esc = (s) =>
@@ -22,10 +13,6 @@ const esc = (s) =>
     "'": "&#39;",
   }[c]));
 
-// Safe compare helpers
-const cmpDesc = (a, b) => (b ?? -Infinity) - (a ?? -Infinity);
-const cmpAsc = (a, b) => (a ?? Infinity) - (b ?? Infinity);
-
 async function loadCsv(url) {
   const res = await fetch(url, { cache: "no-store" });
   if (!res.ok) throw new Error(`Failed to load ${url}: ${res.status}`);
@@ -34,40 +21,16 @@ async function loadCsv(url) {
   return parsed.data || [];
 }
 
-function normalizeRecommendationRow(r) {
-  return {
-    name: (r.Name ?? r.name ?? "").trim(),
-    category: (r.Category ?? r.category ?? "").trim(),
-    calories: toNumOrNull(r.Calories ?? r.calories),
-    protein: toNumOrNull(r.Protein ?? r.protein),
-    carbs: toNumOrNull(r.Carbs ?? r.carbs),
-    fat: toNumOrNull(r.Fat ?? r.fat),
-    score: toNumOrNull(r.Score ?? r.final_score ?? r.score),
-  };
-}
-
-function normalizePlanRow(r) {
-  return {
-    day: (r.Day ?? r.day ?? "").trim(),
-    meal: (r.Meal ?? r.meal ?? "").trim(),
-    name: (r.Name ?? r.name ?? "").trim(),
-    category: (r.Category ?? r.category ?? "").trim(),
-    calories: toNumOrNull(r.Calories ?? r.calories),
-    protein: toNumOrNull(r.Protein ?? r.protein),
-    carbs: toNumOrNull(r.Carbs ?? r.carbs),
-    fat: toNumOrNull(r.Fat ?? r.fat),
-    score: toNumOrNull(r.Score ?? r.final_score ?? r.score),
-  };
-}
-
-function chip(label, val) {
-  const show = val == null ? "—" : String(val);
-  return `<span class="chip">${label}: <b>${esc(show)}</b></span>`;
+function pick(row, keys) {
+  for (const k of keys) {
+    if (row[k] !== undefined && row[k] !== null && String(row[k]).trim() !== "") return row[k];
+  }
+  return "";
 }
 
 function recipeCard(r) {
-  const scoreChip =
-    r.score == null ? "" : `<span class="chip score">Score: <b>${esc(r.score)}</b></span>`;
+  const chip = (label, val) =>
+    (val === null || val === undefined) ? "" : `<span class="chip">${label}: <b>${val}</b></span>`;
 
   return `
     <div class="recipe">
@@ -78,24 +41,77 @@ function recipeCard(r) {
         ${chip("P", r.protein)}
         ${chip("C", r.carbs)}
         ${chip("F", r.fat)}
-        ${scoreChip}
+        ${Number.isFinite(r.score) ? `<span class="chip score">Score: <b>${r.score.toFixed(4)}</b></span>` : ""}
       </div>
     </div>
   `;
 }
 
+function normalizeRecRows(rows) {
+  return rows.map((r) => {
+    const name = String(pick(r, ["Name","name"])).trim();
+    const category = String(pick(r, ["Category","category"])).trim();
+    const calories = toNum(pick(r, ["Calories","calories"]));
+    const protein = toNum(pick(r, ["Protein","protein"]));
+    const carbs   = toNum(pick(r, ["Carbs","carbs"]));
+    const fat     = toNum(pick(r, ["Fat","fat"]));
+    const scoreRaw = toNum(pick(r, ["Score","final_score","score"]));
+
+    return {
+      name,
+      category,
+      calories,
+      protein,
+      carbs,
+      fat,
+      score: Number.isFinite(scoreRaw) ? scoreRaw : -Infinity
+    };
+  }).filter(x => x.name && x.calories !== null);
+}
+
+function drawRecommendationCharts(rows, chartElId, chartHintId) {
+  const hint = chartHintId ? document.getElementById(chartHintId) : null;
+  if (typeof Plotly === "undefined") {
+    if (hint) hint.textContent = "Plotly not available.";
+    return;
+  }
+
+  try {
+    const calories = rows.map(r => r.calories).filter(v => Number.isFinite(v));
+    const scores = rows.map(r => r.score).filter(v => Number.isFinite(v) && v !== -Infinity);
+    const protein = rows.map(r => r.protein).filter(v => Number.isFinite(v));
+
+    const traces = [
+      { x: calories, type: "histogram", nbinsx: 30, name: "Calories" },
+      { x: scores, type: "histogram", nbinsx: 30, name: "Scores" }
+    ];
+    if (protein.length > 10) traces.push({ x: protein, type: "histogram", nbinsx: 30, name: "Protein" });
+
+    Plotly.newPlot(chartElId, traces, {
+      margin: { t: 10, l: 45, r: 20, b: 45 },
+      barmode: "overlay",
+      xaxis: { title: "Value" },
+      yaxis: { title: "Count" },
+      legend: { orientation: "h" }
+    }, { responsive: true });
+
+    if (hint) hint.textContent = "Charts loaded successfully.";
+  } catch (e) {
+    if (hint) hint.textContent = "Charts could not be rendered.";
+  }
+}
+
 // -----------------------------------------------------------
-// ✅ Internal renderer used by both CSV + JSON modes
+// ✅ Recommendations
 // -----------------------------------------------------------
-function mountRecommendations(rows) {
+async function initRecommendations(opts = {}) {
   const holder = document.getElementById("cards");
   const info = document.getElementById("countInfo");
 
-  let data = (rows || [])
-    .map(normalizeRecommendationRow)
-    .filter((x) => x.name);
+  const url = window.RECOMMENDATIONS_CSV_URL || "./top_recommendations_lunch.csv";
+  const raw = await loadCsv(url);
+  const data = normalizeRecRows(raw);
 
-  // Default state (same as your UI)
   const state = {
     q: "",
     calMax: 1200,
@@ -107,7 +123,6 @@ function mountRecommendations(rows) {
 
   const bind = (id, key, transform = (v) => v) => {
     const el = document.getElementById(id);
-    if (!el) return;
     el.addEventListener("input", () => {
       state[key] = transform(el.value);
       render();
@@ -120,98 +135,15 @@ function mountRecommendations(rows) {
   bind("cMax", "cMax", (v) => Number(v));
   bind("fMax", "fMax", (v) => Number(v));
 
-  const sortEl = document.getElementById("sort");
-  if (sortEl) {
-    sortEl.addEventListener("change", (e) => {
-      state.sort = e.target.value;
-      render();
-    });
-  }
+  document.getElementById("sort").addEventListener("change", (e) => {
+    state.sort = e.target.value;
+    render();
+  });
 
   const setLabel = (id, value) => {
     const el = document.getElementById(id + "Val");
     if (el) el.textContent = value;
   };
-
-  function passesFilters(r, q) {
-    // Search
-    const hay = (r.name + " " + (r.category || "")).toLowerCase();
-    const okQ = q ? hay.includes(q) : true;
-
-    // Calories filter (if calories missing, drop it from result)
-    const okCal = r.calories != null && r.calories <= state.calMax;
-
-    // Macro filters:
-    // If macro value is missing, we treat it as "unknown" and do NOT block the recipe
-    // (otherwise almost all rows would be filtered out when dataset lacks macros).
-    const okP = r.protein == null ? true : r.protein >= state.pMin;
-    const okC = r.carbs == null ? true : r.carbs <= state.cMax;
-    const okF = r.fat == null ? true : r.fat <= state.fMax;
-
-    return okQ && okCal && okP && okC && okF;
-  }
-
-  function stableSort(out) {
-    // Decorate with original index to keep stable sorting
-    const decorated = out.map((r, idx) => ({ r, idx }));
-
-    if (state.sort === "score") {
-      decorated.sort((a, b) => {
-        const d = cmpDesc(a.r.score, b.r.score);
-        if (d !== 0) return d;
-        const cal = cmpAsc(a.r.calories, b.r.calories);
-        if (cal !== 0) return cal;
-        return a.idx - b.idx;
-      });
-    } else if (state.sort === "calories") {
-      decorated.sort((a, b) => {
-        const d = cmpAsc(a.r.calories, b.r.calories);
-        if (d !== 0) return d;
-        return a.idx - b.idx;
-      });
-    } else if (state.sort === "protein") {
-      // Protein may be missing: push missing to bottom
-      decorated.sort((a, b) => {
-        const ap = a.r.protein, bp = b.r.protein;
-        if (ap == null && bp == null) return a.idx - b.idx;
-        if (ap == null) return 1;
-        if (bp == null) return -1;
-        const d = bp - ap;
-        if (d !== 0) return d;
-        return a.idx - b.idx;
-      });
-    }
-
-    return decorated.map((d) => d.r);
-  }
-
-  function drawCharts(out) {
-    // Only if Plotly + chart div exist
-    const chartDiv = document.getElementById("recCharts");
-    if (!chartDiv) return;
-    if (typeof Plotly === "undefined") return;
-
-    const cal = out.map(x => x.calories).filter(v => Number.isFinite(v));
-    const score = out.map(x => x.score).filter(v => Number.isFinite(v));
-    const protein = out.map(x => x.protein).filter(v => Number.isFinite(v));
-
-    const traces = [
-      { x: cal, type: "histogram", nbinsx: 30, name: "Calories" },
-      { x: score, type: "histogram", nbinsx: 30, name: "Score" },
-    ];
-
-    if (protein.length > 10) {
-      traces.push({ x: protein, type: "histogram", nbinsx: 30, name: "Protein" });
-    }
-
-    Plotly.newPlot(chartDiv, traces, {
-      margin: { t: 10, l: 45, r: 20, b: 45 },
-      barmode: "overlay",
-      xaxis: { title: "Value" },
-      yaxis: { title: "Count" },
-      legend: { orientation: "h" }
-    }, { responsive: true });
-  }
 
   function render() {
     setLabel("calMax", state.calMax);
@@ -220,82 +152,71 @@ function mountRecommendations(rows) {
     setLabel("fMax", state.fMax);
 
     const q = state.q.trim().toLowerCase();
+    let out = data.filter((r) => {
+      const hay = (r.name + " " + r.category).toLowerCase();
+      const okQ = q ? hay.includes(q) : true;
 
-    let out = data.filter((r) => passesFilters(r, q));
+      const p = r.protein ?? 0;
+      const c = r.carbs ?? 0;
+      const f = r.fat ?? 0;
 
-    // Sort + slice
-    out = stableSort(out).slice(0, 60);
+      return (
+        okQ &&
+        r.calories <= state.calMax &&
+        p >= state.pMin &&
+        c <= state.cMax &&
+        f <= state.fMax
+      );
+    });
 
-    // Monotonic check for score sort (your earlier test issue)
-    if (state.sort === "score") {
-      for (let i = 1; i < out.length; i++) {
-        const prev = out[i - 1].score ?? -Infinity;
-        const cur = out[i].score ?? -Infinity;
-        // if broken, we still render but you can debug
-        if (cur > prev) {
-          // no throw in UI
-          break;
-        }
-      }
-    }
+    // ✅ monotonic ranking with tie-breakers
+    if (state.sort === "score") out.sort((a, b) =>
+      (b.score - a.score) ||
+      ((a.calories ?? 1e18) - (b.calories ?? 1e18)) ||
+      a.name.localeCompare(b.name)
+    );
+    if (state.sort === "calories") out.sort((a, b) =>
+      ((a.calories ?? 1e18) - (b.calories ?? 1e18)) ||
+      (b.score - a.score) ||
+      a.name.localeCompare(b.name)
+    );
+    if (state.sort === "protein") out.sort((a, b) =>
+      ((b.protein ?? 0) - (a.protein ?? 0)) ||
+      (b.score - a.score) ||
+      a.name.localeCompare(b.name)
+    );
 
+    out = out.slice(0, 60);
     info.textContent = `${out.length} results (showing top 60)`;
     holder.innerHTML = out.map(recipeCard).join("");
 
-    // Optional charts
-    drawCharts(out);
+    if (opts.chartElId) drawRecommendationCharts(out, opts.chartElId, opts.chartHintId);
   }
 
   render();
 }
 
 // -----------------------------------------------------------
-// ✅ Recommendations (CSV)
-// -----------------------------------------------------------
-async function initRecommendations() {
-  const url =
-    window.RECOMMENDATIONS_CSV_URL ||
-    "./data/top_recommendations_lunch.csv"; // fallback only if file exists locally
-
-  const rows = await loadCsv(url);
-  mountRecommendations(rows);
-}
-
-// -----------------------------------------------------------
-// ✅ Recommendations (JSON/inline rows)
-// Provide array of objects already loaded elsewhere
-// -----------------------------------------------------------
-async function initRecommendationsFromRows(rows) {
-  mountRecommendations(rows);
-}
-
-// -----------------------------------------------------------
-// ✅ Weekly Plan (CSV)
+// ✅ Weekly Plan
 // -----------------------------------------------------------
 async function initPlan() {
   const root = document.getElementById("planRoot");
 
-  const url =
-    window.WEEKLY_PLAN_CSV_URL ||
-    "./data/weekly_plan.csv"; // fallback only if file exists locally
-
+  const url = window.WEEKLY_PLAN_CSV_URL || "./weekly_plan.csv";
   const rows = await loadCsv(url);
-  mountPlan(root, rows);
-}
 
-// -----------------------------------------------------------
-// ✅ Weekly Plan (JSON/inline rows)
-// -----------------------------------------------------------
-async function initPlanFromRows(rows) {
-  const root = document.getElementById("planRoot");
-  mountPlan(root, rows);
-}
-
-function mountPlan(root, rows) {
-  if (!root) return;
-
-  const data = (rows || [])
-    .map(normalizePlanRow)
+  const data = rows
+    .map((r) => ({
+      day: String(pick(r, ["Day","day"])).trim(),
+      meal: String(pick(r, ["Meal","meal"])).trim(),
+      name: String(pick(r, ["Name","name"])).trim(),
+      category: String(pick(r, ["Category","category"])).trim(),
+      calories: toNum(pick(r, ["Calories","calories"])),
+      protein: toNum(pick(r, ["Protein","protein"])),
+      carbs: toNum(pick(r, ["Carbs","carbs"])),
+      fat: toNum(pick(r, ["Fat","fat"])),
+      score: toNum(pick(r, ["Score","final_score","score"]))
+    }))
     .filter((x) => x.day && x.meal && x.name);
 
   const grouped = {};
@@ -310,26 +231,13 @@ function mountPlan(root, rows) {
     .filter((d) => grouped[d]?.length)
     .map((day) => {
       const items = grouped[day];
-
-      // Normalize meal labels to expected buckets
       const meals = { Breakfast: [], Lunch: [], Dinner: [] };
-      for (const it of items) {
-        const key = it.meal;
-        if (meals[key]) meals[key].push(it);
-        else {
-          // unknown meal bucket: try best-fit
-          const k = String(key).toLowerCase();
-          if (k.includes("break")) meals.Breakfast.push(it);
-          else if (k.includes("lunch")) meals.Lunch.push(it);
-          else if (k.includes("dinner")) meals.Dinner.push(it);
-          else meals.Lunch.push(it);
-        }
-      }
+      for (const it of items) (meals[it.meal] ??= []).push(it);
 
       const mealCol = (title) => `
         <div class="mealCol">
           <h4>${title}</h4>
-          ${(meals[title] || []).map(recipeCard).join("") || `<div class="chip">No entry</div>`}
+          ${(meals[title] || []).map(recipeCard).join("") || `<div class="chip">No entry in CSV</div>`}
         </div>
       `;
 
@@ -350,8 +258,5 @@ function mountPlan(root, rows) {
     .join("");
 }
 
-// expose functions
 window.initRecommendations = initRecommendations;
-window.initRecommendationsFromRows = initRecommendationsFromRows;
 window.initPlan = initPlan;
-window.initPlanFromRows = initPlanFromRows;
